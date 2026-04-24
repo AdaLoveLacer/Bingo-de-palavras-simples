@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo de Palavras - Grid 3x3</title>
+    <style>
+        :root {
+            --color-primary: #667eea;
+            --color-secondary: #764ba2;
+            --color-cell-filled: #a8e6cf;
+            --color-bingo: #feca5b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 { font-size: 2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); margin-bottom: 10px; }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        .cell {
+            background: white;
+            color: #333;
+            min-height: 100px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+
+        .cell:hover { transform: scale(1.02); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+        .cell.empty { background: #f5f5f5; color: #999; cursor: default; }
+        
+        .cell.added { 
+            background: linear-gradient(135deg, var(--color-cell-filled) 0%, #dcedc1 100%);
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .cell.marked {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            border-color: #11998e;
+            animation: pulse 0.6s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .cell.marked.bingo {
+            background: linear-gradient(135deg, var(--color-bingo) 0%, #ff9f43 100%);
+            border-color: #e67e22;
+            font-size: 1.5rem;
+            animation: bounce 0.8s ease infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+
+        .bingo-display {
+            text-align: center;
+            font-size: 4rem;
+            font-weight: bold;
+            color: var(--color-bingo);
+            text-shadow: 0 0 30px rgba(254,202,91,0.6);
+            margin-bottom: 20px;
+            min-height: 80px;
+        }
+
+        .bingo-display.active { animation: bounce 0.8s ease infinite alternate; }
+
+        #bingo-msg { font-size: 3rem; color: #ff6b6b; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        #bingo-msg.active { animation: bounce 0.8s ease infinite alternate; }
+
+        .controls {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn-add { background: linear-gradient(45deg, #11998e, #38ef7d); color: white; }
+        .btn-clear { background: linear-gradient(45deg, #cb2d3e, #ef473a); color: white; }
+        
+        button:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status-panel {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 60px;
+        }
+
+        /* Scrollbar custom */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5rem; }
+            .cell { min-height: 80px; padding: 10px; font-size: 1rem; }
+            .bingo-display { font-size: 2.5rem; }
+        }
+
+        .floating-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            z-index: 999;
+        }
+
+        .floating-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+
+        .settings-panel {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            padding: 20px;
+            width: 280px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            z-index: 998;
+            animation: slideIn 0.3s ease;
+        }
+
+        .settings-panel.active { display: block; }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .settings-panel h3 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
+            border-bottom: 2px solid var(--color-primary);
+            padding-bottom: 10px;
+        }
+
+        .color-group {
+            margin-bottom: 15px;
+        }
+
+        .color-group label {
+            display: block;
+            color: #555;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .color-input-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .color-group input[type="color"] {
+            width: 45px;
+            height: 40px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .color-value {
+            font-size: 0.85rem;
+            color: #999;
+            flex: 1;
+            word-break: break-all;
+        }
+
+        .settings-divider {
+            height: 2px;
+            background: #e0e0e0;
+            margin: 20px 0;
+        }
+
+        .audio-group {
+            margin-top: 20px;
+        }
+
+        .audio-group h4 {
+            color: #333;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            font-weight: bold;
+        }
+
+        .audio-upload-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f5f5f5;
+            border: 2px dashed #11998e;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .file-input-label:hover {
+            background: #e8f5e9;
+            border-color: #0d7a69;
+        }
+
+        #audio-file-input {
+            display: none;
+        }
+
+        .audio-file-name {
+            font-size: 0.85rem;
+            color: #11998e;
+            font-weight: bold;
+            margin-top: 8px;
+            padding: 8px;
+            background: #e8f5e9;
+            border-radius: 4px;
+        }
+
+        .audio-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-test-audio {
+            flex: 1;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .btn-test-audio:hover { background: #45a049; }
+        .btn-test-audio:disabled { background: #ccc; cursor: not-allowed; }
+
+        .btn-clear-audio {
+            flex: 1;
+            padding: 10px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: 0.3s;
+        }
+
+        .btn-clear-audio:hover { background: #da190b; }
+        .btn-clear-audio:disabled { background: #ccc; cursor: not-allowed; }
+
+        .btn-reset-colors {
+            width: 100%;
+            padding: 10px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: 0.3s ease;
+        }
+
+        .btn-reset-colors:hover { background: var(--color-secondary); }
+
+        @media (max-width: 600px) {
+            .floating-btn { bottom: 20px; right: 20px; width: 50px; height: 50px; }
+            .settings-panel { width: 250px; right: 20px; bottom: 80px; }
+        }
+
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: 2px solid white;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.3); }
+        .tab-btn.active { background: white; color: var(--color-primary); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
+
+        .page-content { display: none; }
+        .page-content.active { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .grid-4x4 { grid-template-columns: repeat(4, 1fr); }
+        .grid-5x5 { grid-template-columns: repeat(5, 1fr); }
+
+        .cell.selected {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            border-color: #11998e;
+            animation: pulse 0.6s ease;
+        }
+
+        .cell.bingo-line {
+            background: linear-gradient(135deg, var(--color-bingo) 0%, #ff9f43 100%);
+            border-color: #e67e22;
+            animation: bounce 0.8s ease infinite alternate;
+        }
+
+        .history-btn {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            z-index: 998;
+        }
+
+        .history-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+
+        .history-panel {
+            position: fixed;
+            bottom: 170px;
+            right: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            padding: 20px;
+            width: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            display: none;
+            z-index: 997;
+            animation: slideIn 0.3s ease;
+        }
+
+        .history-panel.active { display: block; }
+
+        .history-panel h3 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
+            border-bottom: 2px solid #11998e;
+            padding-bottom: 10px;
+        }
+
+        .saved-item {
+            background: #f8f9fa;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #11998e;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .saved-item:hover { background: #e8f5e9; transform: translateX(5px); }
+
+        .saved-item-info {
+            flex: 1;
+        }
+
+        .saved-item-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 0.95rem;
+        }
+
+        .saved-item-meta {
+            font-size: 0.8rem;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .saved-item-delete {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            margin-left: 8px;
+        }
+
+        .saved-item-delete:hover { background: #ee5a52; }
+
+        .empty-message {
+            text-align: center;
+            color: #999;
+            padding: 20px 10px;
+            font-size: 0.9rem;
+        }
+
+        .save-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 30px;
+            width: 90%;
+            max-width: 400px;
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .save-panel.active { display: block; }
+
+        .save-panel h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .save-panel input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .save-panel input:focus {
+            outline: none;
+            border-color: #11998e;
+            box-shadow: 0 0 8px rgba(17, 153, 142, 0.2);
+        }
+
+        .save-panel-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .save-panel-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-save-confirm {
+            background: #11998e;
+            color: white;
+        }
+
+        .btn-save-confirm:hover { background: #0d7a69; }
+
+        .btn-save-cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-save-cancel:hover { background: #e0e0e0; }
+
+        .btn-save-game {
+            padding: 10px 15px;
+            background: #11998e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: 0.3s;
+            width: 100%;
+        }
+
+        .btn-save-game:hover { background: #0d7a69; }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .overlay.active { display: block; }
+
+        .editable-text {
+            cursor: text;
+            position: relative;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .editable-text:hover {
+            background: rgba(255,255,255,0.1);
+            outline: 2px dashed rgba(255,255,255,0.3);
+        }
+
+        .editable-text[contenteditable="true"] {
+            background: rgba(255,255,255,0.15);
+            outline: 2px solid rgba(255,255,255,0.5);
+            min-height: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="editable-text" id="header-title">🎯 Bingo de Palavras</h1>
+            <p class="editable-text" id="header-desc">Adicione palavras e selecione 3 em linha para BINGO!</p>
+        </header>
+
+        <div class="tabs-container">
+            <button class="tab-btn active" data-size="3">3x3</button>
+            <button class="tab-btn" data-size="4">4x4</button>
+            <button class="tab-btn" data-size="5">5x5</button>
+        </div>
+
+        <div id="page-3x3" class="page-content active">
+            <div class="bingo-display editable-text" id="bingo-msg-3">BINGO!</div>
+            <div class="grid-container grid-3x3" id="grid-3"></div>
+            <div class="controls">
+                <button id="btn-clear-3" class="btn btn-clear"><span class="editable-text" id="text-clear-grid-3" contenteditable="false">Limpar Grid</span></button>
+                <button id="btn-clear-selection-3" class="btn btn-clear"><span class="editable-text" id="text-clear-selection-3" contenteditable="false">Limpar Seleção</span></button>
+                <button id="btn-save-3" class="btn-save-game"><span class="editable-text" id="text-save-bingo-3" contenteditable="false">Salvar Bingo</span></button>
+                <div style="margin-top: 15px; color: #666; font-size: 0.9rem;">
+                    <span class="editable-text" id="text-instructions-3" contenteditable="false">1. Clique para adicionar palavra | 2. Duplo clique para editar | 3. Selecione 3 para BINGO</span>
+                </div>
+            </div>
+            <div class="status-panel">
+                <div id="status-3">Pronto! Adicione palavras e selecione 3 em linha.</div>
+            </div>
+        </div>
+
+        <div id="page-4x4" class="page-content">
+            <div class="bingo-display editable-text" id="bingo-msg-4">BINGO!</div>
+            <div class="grid-container grid-4x4" id="grid-4"></div>
+            <div class="controls">
+                <button id="btn-clear-4" class="btn btn-clear"><span class="editable-text" id="text-clear-grid-4" contenteditable="false">Limpar Grid</span></button>
+                <button id="btn-clear-selection-4" class="btn btn-clear"><span class="editable-text" id="text-clear-selection-4" contenteditable="false">Limpar Seleção</span></button>
+                <button id="btn-save-4" class="btn-save-game"><span class="editable-text" id="text-save-bingo-4" contenteditable="false">Salvar Bingo</span></button>
+                <div style="margin-top: 15px; color: #666; font-size: 0.9rem;">
+                    <span class="editable-text" id="text-instructions-4" contenteditable="false">1. Clique para adicionar palavra | 2. Duplo clique para editar | 3. Selecione 4 para BINGO</span>
+                </div>
+            </div>
+            <div class="status-panel">
+                <div id="status-4">Pronto! Adicione palavras e selecione 4 em linha.</div>
+            </div>
+        </div>
+
+        <div id="page-5x5" class="page-content">
+            <div class="bingo-display editable-text" id="bingo-msg-5">BINGO!</div>
+            <div class="grid-container grid-5x5" id="grid-5"></div>
+            <div class="controls">
+                <button id="btn-clear-5" class="btn btn-clear"><span class="editable-text" id="text-clear-grid-5" contenteditable="false">Limpar Grid</span></button>
+                <button id="btn-clear-selection-5" class="btn btn-clear"><span class="editable-text" id="text-clear-selection-5" contenteditable="false">Limpar Seleção</span></button>
+                <button id="btn-save-5" class="btn-save-game"><span class="editable-text" id="text-save-bingo-5" contenteditable="false">Salvar Bingo</span></button>
+                <div style="margin-top: 15px; color: #666; font-size: 0.9rem;">
+                    <span class="editable-text" id="text-instructions-5" contenteditable="false">1. Clique para adicionar palavra | 2. Duplo clique para editar | 3. Selecione 5 para BINGO</span>
+                </div>
+            </div>
+            <div class="status-panel">
+                <div id="status-5">Pronto! Adicione palavras e selecione 5 em linha.</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="floating-btn" id="settings-btn" title="Configurações">⚙️</button>
+    <button class="history-btn" id="history-btn" title="Histórico">📋</button>
+    
+    <div class="history-panel" id="history-panel">
+        <h3><span class="editable-text" id="text-saved-bingos" contenteditable="false">Bingos Salvos</span></h3>
+        <div id="history-list"></div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+    
+    <div class="save-panel" id="save-panel">
+        <h3><span class="editable-text" id="text-save-panel-title" contenteditable="false">Salvar Bingo</span></h3>
+        <input type="text" id="save-name" placeholder="Digite o nome do bingo..." />
+        <div class="save-panel-buttons">
+            <button class="btn-save-confirm" id="btn-confirm-save"><span class="editable-text" id="text-btn-save" contenteditable="false">Salvar</span></button>
+            <button class="btn-save-cancel" id="btn-cancel-save"><span class="editable-text" id="text-btn-cancel" contenteditable="false">Cancelar</span></button>
+        </div>
+    </div>
+    
+    <div class="settings-panel" id="settings-panel">
+        <h3><span class="editable-text" id="text-settings-title" contenteditable="false">Configurações de Cores</span></h3>
+        
+        <div class="color-group">
+            <label><span class="editable-text" id="text-gradient-bg1" contenteditable="false">Gradiente Fundo</span></label>
+            <div class="color-input-wrapper">
+                <input type="color" id="color1" value="#667eea">
+                <span class="color-value" id="color1-value">#667eea</span>
+            </div>
+        </div>
+
+        <div class="color-group">
+            <label><span class="editable-text" id="text-gradient-bg2" contenteditable="false">Gradiente Fundo (2)</span></label>
+            <div class="color-input-wrapper">
+                <input type="color" id="color2" value="#764ba2">
+                <span class="color-value" id="color2-value">#764ba2</span>
+            </div>
+        </div>
+
+        <div class="color-group">
+            <label><span class="editable-text" id="text-cell-color" contenteditable="false">Cor Célula Preenchida</span></label>
+            <div class="color-input-wrapper">
+                <input type="color" id="color3" value="#a8e6cf">
+                <span class="color-value" id="color3-value">#a8e6cf</span>
+            </div>
+        </div>
+
+        <div class="color-group">
+            <label><span class="editable-text" id="text-bingo-color" contenteditable="false">Cor Bingo</span></label>
+            <div class="color-input-wrapper">
+                <input type="color" id="color4" value="#feca5b">
+                <span class="color-value" id="color4-value">#feca5b</span>
+            </div>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <div class="audio-group">
+            <h4><span class="editable-text" id="text-audio-title" contenteditable="false">Som de Bingo</span></h4>
+            <div class="audio-upload-wrapper">
+                <label class="file-input-label" for="audio-file-input">
+                    <span class="editable-text" id="text-audio-upload" contenteditable="false">Upload de Áudio (MP3, WAV, OGG)</span>
+                </label>
+                <input type="file" id="audio-file-input" accept="audio/*" />
+                <div id="audio-file-name"></div>
+                <div class="audio-buttons">
+                    <button class="btn-test-audio" id="btn-test-audio" disabled><span class="editable-text" id="text-test-audio" contenteditable="false">Testar Som</span></button>
+                    <button class="btn-clear-audio" id="btn-clear-audio" disabled><span class="editable-text" id="text-clear-audio" contenteditable="false">Remover Áudio</span></button>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-reset-colors" id="btn-reset"><span class="editable-text" id="text-reset-colors" contenteditable="false">Restaurar Cores</span></button>
+    </div>
+
+    <script>
+        const sizes = { 3: 9, 4: 16, 5: 25 };
+        const grids = {};
+        const filledCells = {};
+        const selectedCells = {};
+        let currentSize = 3;
+        let currentSaveSize = null;
+
+        function initGrids() {
+            [3, 4, 5].forEach(size => {
+                grids[size] = Array(sizes[size]).fill('');
+                selectedCells[size] = new Set();
+            });
+        }
+
+        function createGrid(size) {
+            const gridEl = document.getElementById(`grid-${size}`);
+            gridEl.innerHTML = '';
+            gridEl.className = `grid-container grid-${size}x${size}`;
+
+            for (let i = 0; i < sizes[size]; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell empty';
+                cell.dataset.index = i;
+                cell.dataset.size = size;
+                gridEl.appendChild(cell);
+            }
+
+            attachGridListeners(size);
+        }
+
+        function attachGridListeners(size) {
+            const gridEl = document.getElementById(`grid-${size}`);
+            const cells = gridEl.querySelectorAll('.cell');
+
+            cells.forEach(cell => {
+                cell.addEventListener('click', (e) => handleCellClick(e, size));
+                cell.addEventListener('dblclick', (e) => handleCellDoubleClick(e, size));
+                cell.addEventListener('contextmenu', (e) => handleCellRightClick(e, size));
+            });
+        }
+
+        function handleCellClick(e, size) {
+            const cell = e.target.closest('.cell');
+            const index = parseInt(cell.dataset.index);
+
+            if (cell.classList.contains('added')) {
+                toggleSelection(cell, index, size);
+                return;
+            }
+
+            const text = prompt('Digite a palavra/frase:');
+            if (isValidInput(text)) {
+                addWordToCell(cell, trimText(text), index, size);
+            }
+        }
+
+        function handleCellDoubleClick(e, size) {
+            const cell = e.target.closest('.cell');
+            if (!cell.classList.contains('added')) return;
+
+            const index = parseInt(cell.dataset.index);
+            const text = prompt('Editar palavra/frase (deixe vazio para remover):', grids[size][index]);
+            if (text === null) return;
+
+            if (isValidInput(text)) {
+                addWordToCell(cell, trimText(text), index, size);
+            } else {
+                removeWordFromCell(cell, index, size);
+            }
+        }
+
+        function handleCellRightClick(e, size) {
+            e.preventDefault();
+            const cell = e.target.closest('.cell');
+            const index = parseInt(cell.dataset.index);
+            if (cell.classList.contains('added')) {
+                toggleSelection(cell, index, size);
+            }
+        }
+
+        function toggleSelection(cell, index, size) {
+            if (selectedCells[size].has(index)) {
+                selectedCells[size].delete(index);
+                cell.classList.remove('selected');
+                updateStatus(size);
+            } else {
+                selectedCells[size].add(index);
+                cell.classList.add('selected');
+                checkBingo(size);
+                updateStatus(size);
+            }
+        }
+
+        function addWordToCell(cell, text, index, size) {
+            cell.textContent = text;
+            cell.className = 'cell added';
+            grids[size][index] = text;
+        }
+
+        function removeWordFromCell(cell, index, size) {
+            cell.innerHTML = '';
+            cell.className = 'cell empty';
+            grids[size][index] = '';
+            selectedCells[size].delete(index);
+            cell.classList.remove('selected', 'bingo-line');
+            updateStatus(size);
+        }
+
+        function checkBingo(size) {
+            const required = size;
+            const selected = Array.from(selectedCells[size]);
+
+            if (selected.length !== required) return;
+
+            const lines = getWinningLines(size, required);
+
+            for (const line of lines) {
+                if (line.every(idx => selected.includes(idx))) {
+                    triggerBingo(size, line);
+                    return;
+                }
+            }
+        }
+
+        function getWinningLines(size, required) {
+            const lines = [];
+
+            for (let i = 0; i < size; i++) {
+                lines.push([...Array(required)].map((_, j) => i * size + j));
+            }
+
+            for (let j = 0; j < size; j++) {
+                lines.push([...Array(required)].map((_, i) => i * size + j));
+            }
+
+            const diag1 = [...Array(required)].map((_, i) => i * size + i);
+            const diag2 = [...Array(required)].map((_, i) => i * size + (size - 1 - i));
+            lines.push(diag1, diag2);
+
+            return lines;
+        }
+
+        function triggerBingo(size, winningLine) {
+            const gridEl = document.getElementById(`grid-${size}`);
+            const cells = gridEl.querySelectorAll('.cell');
+
+            winningLine.forEach(idx => {
+                cells[idx].classList.add('bingo-line');
+            });
+
+            const bingoDisplay = document.getElementById(`bingo-msg-${size}`);
+            bingoDisplay.textContent = '🎉 BINGO! 🎉';
+            bingoDisplay.classList.add('active');
+
+            const status = document.getElementById(`status-${size}`);
+            status.textContent = `✅ BINGO! Linha vencedora: ${winningLine.join(', ')}`;
+
+            playBingoSound();
+
+            setTimeout(() => {
+                status.textContent = 'Jogo concluído! Clique "Limpar Grid" para reiniciar.';
+            }, 3000);
+        }
+
+        function updateStatus(size) {
+            const status = document.getElementById(`status-${size}`);
+            const selected = selectedCells[size].size;
+            const required = size;
+            status.textContent = `Selecionados: ${selected}/${required} | Total de palavras: ${grids[size].filter(w => w).length}`;
+        }
+
+        function clearGrid(size) {
+            grids[size] = Array(sizes[size]).fill('');
+            selectedCells[size].clear();
+            
+            const gridEl = document.getElementById(`grid-${size}`);
+            const cells = gridEl.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.innerHTML = '';
+                cell.className = 'cell empty';
+            });
+
+            const bingoDisplay = document.getElementById(`bingo-msg-${size}`);
+            bingoDisplay.classList.remove('active');
+            bingoDisplay.textContent = 'BINGO!';
+
+            updateStatus(size);
+        }
+
+        function clearSelection(size) {
+            selectedCells[size].clear();
+            const gridEl = document.getElementById(`grid-${size}`);
+            const cells = gridEl.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.classList.remove('selected', 'bingo-line');
+            });
+
+            const bingoDisplay = document.getElementById(`bingo-msg-${size}`);
+            bingoDisplay.classList.remove('active');
+            bingoDisplay.textContent = 'BINGO!';
+
+            updateStatus(size);
+        }
+
+        function switchPage(size) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${size}x${size}`).classList.add('active');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-size="${size}"]`).classList.add('active');
+
+            currentSize = size;
+            updateStatus(size);
+        }
+
+        function trimText(text) {
+            return text ? text.trim() : '';
+        }
+
+        function isValidInput(text) {
+            return trimText(text).length > 0;
+        }
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchPage(parseInt(btn.dataset.size)));
+        });
+
+        [3, 4, 5].forEach(size => {
+            document.getElementById(`btn-clear-${size}`)?.addEventListener('click', () => clearGrid(size));
+            document.getElementById(`btn-clear-selection-${size}`)?.addEventListener('click', () => clearSelection(size));
+            document.getElementById(`btn-save-${size}`)?.addEventListener('click', () => openSavePanel(size));
+        });
+
+        initGrids();
+        [3, 4, 5].forEach(size => createGrid(size));
+        updateStatus(3);
+
+        function openSavePanel(size) {
+            currentSaveSize = size;
+            document.getElementById('save-name').value = '';
+            document.getElementById('save-panel').classList.add('active');
+            document.getElementById('overlay').classList.add('active');
+            document.getElementById('save-name').focus();
+        }
+
+        function closeSavePanel() {
+            document.getElementById('save-panel').classList.remove('active');
+            document.getElementById('overlay').classList.remove('active');
+            currentSaveSize = null;
+        }
+
+        document.getElementById('btn-confirm-save').addEventListener('click', () => {
+            const name = trimText(document.getElementById('save-name').value);
+            if (!name) {
+                alert('Digite um nome para o bingo!');
+                return;
+            }
+
+            saveBingo(currentSaveSize, name);
+            closeSavePanel();
+            loadHistory();
+        });
+
+        document.getElementById('btn-cancel-save').addEventListener('click', closeSavePanel);
+        document.getElementById('overlay').addEventListener('click', closeSavePanel);
+
+        function saveBingo(size, name) {
+            const bingos = JSON.parse(localStorage.getItem('savedBingos')) || [];
+            const timestamp = new Date().toLocaleString('pt-BR');
+            
+            const newBingo = {
+                id: Date.now(),
+                name: name,
+                size: size,
+                words: grids[size],
+                date: timestamp
+            };
+
+            bingos.push(newBingo);
+            localStorage.setItem('savedBingos', JSON.stringify(bingos));
+        }
+
+        function loadBingo(id) {
+            const bingos = JSON.parse(localStorage.getItem('savedBingos')) || [];
+            const bingo = bingos.find(b => b.id === id);
+            
+            if (!bingo) return;
+
+            switchPage(bingo.size);
+            clearGrid(bingo.size);
+            
+            const gridEl = document.getElementById(`grid-${bingo.size}`);
+            const cells = gridEl.querySelectorAll('.cell');
+            
+            bingo.words.forEach((word, index) => {
+                if (word) {
+                    grids[bingo.size][index] = word;
+                    cells[index].textContent = word;
+                    cells[index].className = 'cell added';
+                }
+            });
+
+            updateStatus(bingo.size);
+            closeHistory();
+        }
+
+        function deleteBingo(id) {
+            if (!confirm('Deletar este bingo?')) return;
+            
+            let bingos = JSON.parse(localStorage.getItem('savedBingos')) || [];
+            bingos = bingos.filter(b => b.id !== id);
+            localStorage.setItem('savedBingos', JSON.stringify(bingos));
+            loadHistory();
+        }
+
+        function loadHistory() {
+            const bingos = JSON.parse(localStorage.getItem('savedBingos')) || [];
+            const historyList = document.getElementById('history-list');
+            
+            if (bingos.length === 0) {
+                historyList.innerHTML = '<div class="empty-message">Nenhum bingo salvo ainda</div>';
+                return;
+            }
+
+            historyList.innerHTML = bingos.map(bingo => `
+                <div class="saved-item">
+                    <div class="saved-item-info" onclick="loadBingo(${bingo.id})">
+                        <div class="saved-item-name">${bingo.name}</div>
+                        <div class="saved-item-meta">${bingo.size}x${bingo.size} - ${bingo.date}</div>
+                    </div>
+                    <button class="saved-item-delete" onclick="deleteBingo(${bingo.id})">Deletar</button>
+                </div>
+            `).join('');
+        }
+
+        function toggleHistory() {
+            const panel = document.getElementById('history-panel');
+            panel.classList.toggle('active');
+            if (panel.classList.contains('active')) {
+                loadHistory();
+            }
+        }
+
+        function closeHistory() {
+            document.getElementById('history-panel').classList.remove('active');
+        }
+
+        document.getElementById('history-btn').addEventListener('click', toggleHistory);
+
+        document.addEventListener('click', (e) => {
+            const historyPanel = document.getElementById('history-panel');
+            const historyBtn = document.getElementById('history-btn');
+            if (!e.target.closest('#history-panel') && !e.target.closest('#history-btn')) {
+                historyPanel.classList.remove('active');
+            }
+        });
+
+        function playBingoSound() {
+            const audioData = localStorage.getItem('bingoAudio');
+            if (!audioData) return;
+
+            const audio = new Audio(audioData);
+            audio.play().catch(() => {});
+        }
+
+        function handleAudioUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Arquivo muito grande! Máximo 5MB');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const audioData = event.target.result;
+                localStorage.setItem('bingoAudio', audioData);
+                updateAudioUI();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateAudioUI() {
+            const hasAudio = localStorage.getItem('bingoAudio');
+            const fileName = document.getElementById('audio-file-name');
+            const testBtn = document.getElementById('btn-test-audio');
+            const clearBtn = document.getElementById('btn-clear-audio');
+
+            if (hasAudio) {
+                fileName.innerHTML = '<div class="audio-file-name">✓ Áudio carregado com sucesso!</div>';
+                testBtn.disabled = false;
+                clearBtn.disabled = false;
+            } else {
+                fileName.innerHTML = '';
+                testBtn.disabled = true;
+                clearBtn.disabled = true;
+            }
+        }
+
+        document.getElementById('audio-file-input').addEventListener('change', handleAudioUpload);
+
+        document.getElementById('btn-test-audio').addEventListener('click', playBingoSound);
+
+        document.getElementById('btn-clear-audio').addEventListener('click', () => {
+            if (confirm('Remover áudio de bingo?')) {
+                localStorage.removeItem('bingoAudio');
+                document.getElementById('audio-file-input').value = '';
+                updateAudioUI();
+            }
+        });
+
+        updateAudioUI();
+
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsPanel = document.getElementById('settings-panel');
+        const colorInputs = document.querySelectorAll('.settings-panel input[type="color"]');
+        const btnReset = document.getElementById('btn-reset');
+
+        const defaultColors = {
+            color1: '#667eea',
+            color2: '#764ba2',
+            color3: '#a8e6cf',
+            color4: '#feca5b'
+        };
+
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.settings-panel') && !e.target.closest('.floating-btn')) {
+                settingsPanel.classList.remove('active');
+            }
+        });
+
+        colorInputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                const colorId = e.target.id;
+                const colorValue = e.target.value;
+                document.getElementById(`${colorId}-value`).textContent = colorValue;
+                applyColors();
+                saveColors();
+            });
+        });
+
+        function applyColors() {
+            const color1 = document.getElementById('color1').value;
+            const color2 = document.getElementById('color2').value;
+            const color3 = document.getElementById('color3').value;
+            const color4 = document.getElementById('color4').value;
+
+            document.documentElement.style.setProperty('--color-primary', color1);
+            document.documentElement.style.setProperty('--color-secondary', color2);
+            document.documentElement.style.setProperty('--color-cell-filled', color3);
+            document.documentElement.style.setProperty('--color-bingo', color4);
+        }
+
+        function saveColors() {
+            const colors = {
+                color1: document.getElementById('color1').value,
+                color2: document.getElementById('color2').value,
+                color3: document.getElementById('color3').value,
+                color4: document.getElementById('color4').value
+            };
+            localStorage.setItem('bingoColors', JSON.stringify(colors));
+        }
+
+        function loadColors() {
+            const saved = localStorage.getItem('bingoColors');
+            if (saved) {
+                const colors = JSON.parse(saved);
+                document.getElementById('color1').value = colors.color1;
+                document.getElementById('color2').value = colors.color2;
+                document.getElementById('color3').value = colors.color3;
+                document.getElementById('color4').value = colors.color4;
+                
+                document.getElementById('color1-value').textContent = colors.color1;
+                document.getElementById('color2-value').textContent = colors.color2;
+                document.getElementById('color3-value').textContent = colors.color3;
+                document.getElementById('color4-value').textContent = colors.color4;
+                
+                applyColors();
+            }
+        }
+
+        btnReset.addEventListener('click', () => {
+            document.getElementById('color1').value = defaultColors.color1;
+            document.getElementById('color2').value = defaultColors.color2;
+            document.getElementById('color3').value = defaultColors.color3;
+            document.getElementById('color4').value = defaultColors.color4;
+            
+            document.getElementById('color1-value').textContent = defaultColors.color1;
+            document.getElementById('color2-value').textContent = defaultColors.color2;
+            document.getElementById('color3-value').textContent = defaultColors.color3;
+            document.getElementById('color4-value').textContent = defaultColors.color4;
+            
+            localStorage.removeItem('bingoColors');
+            applyColors();
+        });
+
+        loadColors();
+
+        function initEditableTexts() {
+            const editableElements = document.querySelectorAll('.editable-text');
+            
+            editableElements.forEach(el => {
+                const key = `editable_${el.id}`;
+                const saved = localStorage.getItem(key);
+                if (saved) el.textContent = saved;
+                
+                el.addEventListener('dblclick', (e) => {
+                    e.preventDefault();
+                    el.contentEditable = 'true';
+                    el.focus();
+                    document.execCommand('selectAll', false, null);
+                });
+                
+                el.addEventListener('blur', () => {
+                    el.contentEditable = 'false';
+                    localStorage.setItem(key, el.textContent);
+                });
+                
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        el.blur();
+                    } else if (e.key === 'Escape') {
+                        el.textContent = localStorage.getItem(key) || el.textContent;
+                        el.blur();
+                    }
+                });
+            });
+        }
+
+        initEditableTexts();
+    </script>
+</body>
+</html>
